@@ -34,87 +34,6 @@ def line_review(filename):
 def get_sample(episode_number):
     return list(itertools.islice(line_review(all_txt_filepath),
                           episode_number, episode_number+1))[0]
-        
-def lda_description(text, bigram_model, trigram_model, trigram_dictionary, topn=25):
-    
-    parsed_episode = nlp(text)    
-    unigram_episode = [token.lemma_ for token in parsed_episode
-                      if not punct_or_space(token)]
-    
-    bigram_episode = bigram_model[unigram_episode]
-    trigram_episode = trigram_model[bigram_episode]
-    trigram_episode = [term for term in trigram_episode
-                      if not term in spacy.en.STOP_WORDS]
-    
-    bow = trigram_dictionary.doc2bow(trigram_episode)
-    episode_lda = lda[bow]
-    episode_lda = sorted(episode_lda, key=lambda (topic_number, freq): -freq)
-    keywords = []
-    for term in lda.show_topic(episode_lda[0][0], topn=topn):
-        keywords.append(term[0])
-        
-    return keywords
-
-
-def print_sample_episode(sample_number, bigram_model, trigram_model, trigram_dictionary):
-	new_text = []
-	episode = get_sample(sample_number)
-	keywords = lda_description(episode, bigram_model, trigram_model, trigram_dictionary)
-
-	for word in episode.split():
-	    
-	    if word.lower() in keywords:
-	        word = Fore.RED + word + Style.RESET_ALL
-	    # need to get all variations of the word. Lemma, cap, etc... Maybe similar words with spacy? 
-	    new_text.append(word)
-	    
-	print ' '.join(new_text)
-
-
-def main(sample_episde=False, sample=random.randint(0, 100), visualize=False):
-
-	trigram_sentences = LineSentence(triJOIN_sentences_filepath)
-	trigram_dictionary = Dictionary(trigram_sentences)
-	trigram_dictionary.filter_extremes(no_below=10, no_above=0.4)
-	trigram_dictionary.compactify()
-
-
-	trigram_bow_corpus = [trigram_dictionary.doc2bow(episode) for episode in trigram_sentences]
-
-
-	lda = LdaMulticore(corpus=trigram_bow_corpus, num_topics=18, id2word=trigram_dictionary, workers=3, passes=10)
-	lda.save(lda_model_filepath)
-
-	unigram_sentences = LineSentence(unigram_sentences_filepath)
-	bigram_model = Phrases(unigram_sentences)
-	bigram_sentences = LineSentence(bigram_sentences_filepath)
-	trigram_model = Phrases(bigram_sentences)
-
-	if sample_episde:
-		print_sample_episode(sample, bigram_model, trigram_model, trigram_dictionary)
-# new_text = []
-# episode = get_sample(6)
-# keywords = lda_description(episode)
-
-# for word in episode.split():
-    
-#     if word.lower() in keywords:
-#         word = Fore.RED + word + Style.RESET_ALL
-#     # need to get all variations of the word. Lemma, cap, etc... Maybe similar words with spacy? 
-#     new_text.append(word)
-    
-# print ' '.join(new_text)
-
-	if visualize:
-		LDAvis_prepared = pyLDAvis.gensim.prepare(lda, trigram_bow_corpus, trigram_dictionary)
-		pyLDAvis.show(LDAvis_prepared)
-
-
-
-# if __name__ == '__main__':
-# 	main(sample_episde=True, visualize=True)
-
-
 
 class LDA(object):
 	def __init__(self):
@@ -186,17 +105,16 @@ class LDA(object):
 		self.trigram_dictionary.filter_extremes(no_below=no_below, no_above=no_below)
 		self.trigram_dictionary.compactify()
 		self.bow = self.create_bow(self.trigram_dictionary, trigram_sentences)
-		return self.trigram_dictionary, trigram_sentences, self.bow
 
 	def create_bow(self, dictionary, sentences):
 		return [dictionary.doc2bow(episode) for episode in sentences]
 
 
 if __name__ == '__main__':
-
+	# init model
 	model = LDA()
-	trigram_dictionary, trigram_sentences, bow = model.create_dictionary(triJOIN_sentences_filepath)
-	# model.fit(num_topics = 18, corpus = bow, id2word = trigram_dictionary)
+
+	model.create_dictionary(triJOIN_sentences_filepath)
 	model.fit(num_topics = 18)
 	model.evaluate()
 	model.visualize()
